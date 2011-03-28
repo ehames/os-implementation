@@ -58,7 +58,6 @@ int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
 	KASSERT(header->ident[EI_CLASS] == ELFCLASS32);
 	KASSERT(header->ident[EI_DATA] == ELFDATA2LSB);
 	KASSERT(header->ident[EI_VERSION] == EV_CURRENT);
-	// KASSERT(header->ident[EI_NIDENT] == IDENT_SIZE); // fail?
 	KASSERT(header->type == ET_EXEC);
 	KASSERT(header->machine == EM_386);
 	KASSERT(header->version == EV_CURRENT);
