@@ -33,6 +33,8 @@ static const char ELF_MAGIC_NUMBER[4] = {0x7f, 'E', 'L', 'F'};
 #define EV_CURRENT	1 // current version
 
 
+static void load_program_header(struct Exe_Segment *exeSegment, programHeader *ph);
+
 /**
  * From the data of an ELF executable, determine how its segments
  * need to be loaded into memory.
@@ -79,14 +81,19 @@ int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
 		KASSERT(ph->offset < exeFileLength);
 		KASSERT(ph->offset + ph->fileSize < exeFileLength);
 
-		// copy program header data
-		exeFormat->segmentList[i].offsetInFile = ph->offset;
-		exeFormat->segmentList[i].lengthInFile = ph->fileSize;
-		exeFormat->segmentList[i].startAddress = ph->vaddr;
-		exeFormat->segmentList[i].sizeInMemory = ph->memSize;
-		exeFormat->segmentList[i].protFlags = ph->flags;
+		load_program_header(&exeFormat->segmentList[i], ph);
 	}
 
 	return 0;
+}
+
+static void load_program_header(struct Exe_Segment *exeSegment, programHeader *ph)
+{
+	// copy program header data
+	exeSegment->offsetInFile = ph->offset;
+	exeSegment->lengthInFile = ph->fileSize;
+	exeSegment->startAddress = ph->vaddr;
+	exeSegment->sizeInMemory = ph->memSize;
+	exeSegment->protFlags = ph->flags;
 }
 
