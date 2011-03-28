@@ -18,6 +18,21 @@
 #include <geekos/elf.h>
 
 
+static const char ELF_MAGIC_NUMBER[4] = {0x7f, 'E', 'L', 'F'};
+#define ELF_MAGIC_SIZE	4
+
+#define EI_CLASS	4 // file class
+#define ELFCLASS32	1 // 32-bit objects
+#define EI_DATA		5 // data encoding
+#define ELFDATA2LSB	1 // LSB encoding
+#define EI_VERSION	6 // file version
+#define EI_NIDENT	16 // size of ident[]
+#define IDENT_SIZE	16 // this is hardcoded in elf.h
+#define ET_EXEC		2 // executable type
+#define EM_386		3 // 386 architecture
+#define EV_CURRENT	1 // current version
+
+
 /**
  * From the data of an ELF executable, determine how its segments
  * need to be loaded into memory.
@@ -30,6 +45,49 @@
 int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
     struct Exe_Format *exeFormat)
 {
-    TODO("Parse an ELF executable image");
+	// sane parameters
+	KASSERT(exeFileData != NULL);
+	KASSERT(exeFileLength >= sizeof(elfHeader));
+	KASSERT(exeFormat != NULL);
+
+	elfHeader *header = (elfHeader *) exeFileData;
+
+	// sane ELF header
+	KASSERT(! memcmp(header->ident, ELF_MAGIC_NUMBER, ELF_MAGIC_SIZE));
+	KASSERT(header->ehsize == sizeof(elfHeader));
+	KASSERT(header->ident[EI_CLASS] == ELFCLASS32);
+	KASSERT(header->ident[EI_DATA] == ELFDATA2LSB);
+	KASSERT(header->ident[EI_VERSION] == EV_CURRENT);
+	// KASSERT(header->ident[EI_NIDENT] == IDENT_SIZE); // fail?
+	KASSERT(header->type == ET_EXEC);
+	KASSERT(header->machine == EM_386);
+	KASSERT(header->version == EV_CURRENT);
+	KASSERT(header->phentsize == sizeof(programHeader));
+
+	// load executable segments
+	KASSERT(header->entry != 0);
+	exeFormat->entryAddr = header->entry;
+
+	KASSERT(header->phnum > 0 && header->phnum <= EXE_MAX_SEGMENTS);
+	exeFormat->numSegments = header->phnum;
+
+	KASSERT(header->phoff > 0 && header->phoff < exeFileLength);
+	programHeader *ph = (programHeader *) &exeFileData[header->phoff];
+
+	int i = 0;
+	for (; i < header->phnum; ++i, ++ph) {
+		// sane program header
+		KASSERT(ph->offset < exeFileLength);
+		KASSERT(ph->offset + ph->fileSize < exeFileLength);
+
+		// copy program header data
+		exeFormat->segmentList[i].offsetInFile = ph->offset;
+		exeFormat->segmentList[i].lengthInFile = ph->fileSize;
+		exeFormat->segmentList[i].startAddress = ph->vaddr;
+		exeFormat->segmentList[i].sizeInMemory = ph->memSize;
+		exeFormat->segmentList[i].protFlags = ph->flags;
+	}
+
+	return 0;
 }
 
