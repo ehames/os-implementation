@@ -47,44 +47,46 @@ static void load_program_header(struct Exe_Segment *exeSegment, programHeader *p
 int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
     struct Exe_Format *exeFormat)
 {
+	int result = -1, i = 0;
+
 	// sane parameters
-	KASSERT(exeFileData != NULL);
-	KASSERT(exeFileLength >= sizeof(elfHeader));
-	KASSERT(exeFormat != NULL);
+	if (exeFileData == NULL) goto out;
+	if (exeFileLength < sizeof(elfHeader)) goto out;
+	if (exeFormat == NULL) goto out;
 
 	elfHeader *header = (elfHeader *) exeFileData;
 
 	// sane ELF header
-	KASSERT(! memcmp(header->ident, ELF_MAGIC_NUMBER, ELF_MAGIC_SIZE));
-	KASSERT(header->ehsize == sizeof(elfHeader));
-	KASSERT(header->ident[EI_CLASS] == ELFCLASS32);
-	KASSERT(header->ident[EI_DATA] == ELFDATA2LSB);
-	KASSERT(header->ident[EI_VERSION] == EV_CURRENT);
-	KASSERT(header->type == ET_EXEC);
-	KASSERT(header->machine == EM_386);
-	KASSERT(header->version == EV_CURRENT);
-	KASSERT(header->phentsize == sizeof(programHeader));
+	if (memcmp(header->ident, ELF_MAGIC_NUMBER, ELF_MAGIC_SIZE)) goto out;
+	if (header->ehsize != sizeof(elfHeader)) goto out;
+	if (header->ident[EI_CLASS] != ELFCLASS32) goto out;
+	if (header->ident[EI_DATA] != ELFDATA2LSB) goto out;
+	if (header->ident[EI_VERSION] != EV_CURRENT) goto out;
+	if (header->type != ET_EXEC) goto out;
+	if (header->machine != EM_386) goto out;
+	if (header->version != EV_CURRENT) goto out;
+	if (header->phentsize != sizeof(programHeader)) goto out;
 
 	// load executable segments
-	KASSERT(header->entry != 0);
+	if (header->entry == 0) goto out;
 	exeFormat->entryAddr = header->entry;
 
-	KASSERT(header->phnum > 0 && header->phnum <= EXE_MAX_SEGMENTS);
+	if (header->phnum <= 0 || header->phnum > EXE_MAX_SEGMENTS) goto out;
 	exeFormat->numSegments = header->phnum;
 
-	KASSERT(header->phoff > 0 && header->phoff < exeFileLength);
+	if (header->phoff <= 0 || header->phoff >= exeFileLength) goto out;
 	programHeader *ph = (programHeader *) &exeFileData[header->phoff];
 
-	int i = 0;
-	for (; i < header->phnum; ++i, ++ph) {
+	for (i = 0; i < header->phnum; ++i, ++ph) {
 		// sane program header
-		KASSERT(ph->offset < exeFileLength);
-		KASSERT(ph->offset + ph->fileSize < exeFileLength);
+		if (ph->offset >= exeFileLength) goto out;
+		if (ph->offset + ph->fileSize >= exeFileLength) goto out;
 
 		load_program_header(&exeFormat->segmentList[i], ph);
 	}
-
-	return 0;
+	result = 0;
+out:
+	return result;
 }
 
 static void load_program_header(struct Exe_Segment *exeSegment, programHeader *ph)
